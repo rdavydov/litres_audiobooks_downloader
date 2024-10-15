@@ -24,6 +24,21 @@ def get_headers(browser):
     }
 
 
+def get_cookies(browser):
+    cookies = browsercookie.chrome()
+    if browser == "chromium":
+        cookies = browsercookie.chromium()
+    elif browser == "vivaldi":
+        cookies = browsercookie.vivaldi()
+    elif browser == "edge":
+        cookies = browsercookie.edge()
+    elif browser == "firefox":
+        cookies = browsercookie.firefox()
+    elif browser == "safari":
+        cookies = browsercookie.safari()
+    return cookies
+
+
 def download_mp3(url, path, filename, cookies, headers):
     logger.debug("try to download file: " + url)
     full_filename = Path(path) / sanitize_filename(filename)
@@ -31,7 +46,6 @@ def download_mp3(url, path, filename, cookies, headers):
     res = requests.get(url, stream=True,
                        cookies=cookies, headers=headers)
     if res.status_code == 200:
-        # Sizes in bytes.
         total_size = int(res.headers.get("content-length", 0))
         block_size = 1024
         with tqdm(total=total_size, unit="B", unit_scale=True, desc=filename) as progress_bar:
@@ -49,7 +63,7 @@ def download_mp3(url, path, filename, cookies, headers):
 
 def download_book(url, output, browser):
     headers = get_headers(browser)
-    cookies = browsercookie.chrome()
+    cookies = get_cookies(browser)
     book_id = url.split("-")[-1].split("/")[0]
 
     url_string = api_url+book_id
@@ -93,8 +107,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Загрузчик аудиокниг доступных по подписке с сайта litres.ru. \n Прежде чем использовать скрипт, небходимо в браузере залогиниться на сайте. \n Загрузчик использует cookies из браузера.")
     parser.add_argument(
-        "-b", "--browser", help="Браузер в котором вы авторизованы на сайте litres.ru. Будут использоваться cookies из этого браузера", default="chrome",
-        choices=["chrome", "firefox"])
+        "-b", "--browser", help="Браузер в котором вы авторизованы на сайте litres.ru. Будут использоваться cookies из этого браузера. По умолчанию: chrome", default="chrome",
+        choices=["chrome", "chromium", "vivaldi", "edge", "firefox", "safari"])
     parser.add_argument(
         "-o", "--output", help="Путь к папке загрузки", default=".")
     parser.add_argument("url", help="Адрес (url) страницы с книгой")
