@@ -41,10 +41,11 @@ source .venv/bin/activate
 venv\Scripts\activate
 ```
 3. Пример загрузки книги:
-**Linux:**
+**Linux:**  
+
 ```bash
 python main.py -b chrome -o /tmp/audiobooks https://www.litres.ru/audiobook/sebastyan-fitcek/pacient-osoboy-kliniki-54990486/
-```
+```  
 **Windows:**
 ```cmd
 python main.py -b chrome -o D:\audiobooks https://www.litres.ru/audiobook/sebastyan-fitcek/pacient-osoboy-kliniki-54990486/

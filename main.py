@@ -14,11 +14,15 @@ api_url = "https://api.litres.ru/foundation/api/arts/"
 
 def get_headers(browser):
     ua = UserAgent()
-    agent = ua.random
+    agent = ua.chrome()
     if browser == "chrome":
-        agent = ua.chrome
+        agent = ua.chrome()
     elif browser == "firefox":
-        agent = ua.firefox
+        agent = ua.firefox()
+    elif browser == "edge":
+        agent = ua.edge()
+    elif browser == "safari":
+        agent = ua.safari()       
     return {
         'User-Agent': agent,
     }
