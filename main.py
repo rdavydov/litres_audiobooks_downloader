@@ -6,6 +6,7 @@ import argparse
 import logging
 from pathlib import Path
 from fake_useragent import UserAgent
+from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
 api_url = "https://api.litres.ru/foundation/api/arts/"
@@ -30,13 +31,20 @@ def download_mp3(url, path, filename, cookies, headers):
     res = requests.get(url, stream=True,
                        cookies=cookies, headers=headers)
     if res.status_code == 200:
-        with open(full_filename, "wb") as f:
-            shutil.copyfileobj(res.raw, f)
-        logger.debug(
-            f"file has been downloaded and saved as: {full_filename}")
+        # Sizes in bytes.
+        total_size = int(res.headers.get("content-length", 0))
+        block_size = 1024
+        with tqdm(total=total_size, unit="B", unit_scale=True, desc=filename) as progress_bar:
+            with open(full_filename, "wb") as file:
+                for data in res.iter_content(block_size):
+                    progress_bar.update(len(data))
+                    file.write(data)
+
+            if total_size != 0 and progress_bar.n != total_size:
+                logger.error(f"Не удалось загрузить файл: {url}")
     else:
         logger.error(
-            f"code: {res.status_code} while downloading: {url}")
+            f"code: {res.status_code} При загрузке с адреса: {url}")
 
 
 def download_book(url, output, browser):
@@ -57,19 +65,24 @@ def download_book(url, output, browser):
     Path(book_folder).mkdir(exist_ok=True, parents=True)
 
     # Список файлов для загрузки
-    url_string = url_string + "/files"
+    url_string = url_string + "/files/grouped"
     res = requests.get(url_string, cookies=cookies, headers=headers)
     if res.status_code != 200:
         logger.error(
             f"Ошибка запроса GET: {url_string}. Статус: {res.status_code}")
         exit(1)
 
-    files_info = res.json()["payload"]["data"]
-    for file_info in files_info:
-        file_id = file_info["id"]
-        filename = file_info["filename"]
-        file_url = f"https://www.litres.ru/download_book_subscr/{book_id}/{file_id}/{filename}"
-        download_mp3(file_url, book_folder, filename, cookies, headers)
+    groups_info = res.json()["payload"]["data"]
+    for group_info in groups_info:
+        if group_info["file_type"] == "standard_quality_mp3":
+            files_info = group_info["files"]
+            for file_info in files_info:
+                file_id = file_info["id"]
+                filename = file_info["filename"]
+                file_url = f"https://www.litres.ru/download_book_subscr/{book_id}/{file_id}/{filename}"
+                download_mp3(file_url, book_folder,
+                             filename, cookies, headers)
+            break
 
 
 if __name__ == "__main__":
@@ -89,7 +102,3 @@ if __name__ == "__main__":
     args = parser.parse_args()
     logger.info(args)
     download_book(args.url, args.output, args.browser)
-
-
-# download_book(
-#     "https://www.litres.ru/audiobook/sergey-lukyanenko/poiski-utrachennogo-zavtra-71056879/", ".", "chrome")

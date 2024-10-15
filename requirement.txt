@@ -2,3 +2,4 @@ browsercookie
 requests
 pathvalidate
 fake-useragent
+tqdm
