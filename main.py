@@ -44,7 +44,7 @@ def get_cookies(browser):
 
 
 def download_mp3(url, path, filename, cookies, headers):
-    logger.debug("try to download file: " + url)
+    print(f"Загрузка файла: {url}")
     full_filename = Path(path) / sanitize_filename(filename)
 
     res = requests.get(url, stream=True,
@@ -81,7 +81,8 @@ def download_book(url, output, browser):
     logger.debug(f"Получена информация о книге: {book_info['title']}")
     book_folder = Path(output) / sanitize_filename(book_info["title"])
     Path(book_folder).mkdir(exist_ok=True, parents=True)
-
+    print(f"Загрузка файлов в каталог: {book_folder}")
+    
     # Список файлов для загрузки
     url_string = url_string + "/files/grouped"
     res = requests.get(url_string, cookies=cookies, headers=headers)
