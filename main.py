@@ -27,8 +27,10 @@ def get_headers(browser):
 
 
 def get_cookies(browser):
-    cookies = browsercookie.chrome()
-    if browser == "chromium":
+    cookies = ""
+    if browser == "chrome":
+        cookies = browsercookie.chrome()
+    elif browser == "chromium":
         cookies = browsercookie.chromium()
     elif browser == "vivaldi":
         cookies = browsercookie.vivaldi()
@@ -63,6 +65,46 @@ def download_mp3(url, path, filename, cookies, headers):
             f"code: {res.status_code} При загрузке с адреса: {url}")
 
 
+def get_book_info(json_data):
+    book_info = {"title": "", "author": "", "reader": "",
+                 "series": "", "series_count": 0, "series_num": 0}
+    book_info["title"] = json_data["title"]
+
+    for person_info in json_data["persons"]:
+        if person_info["role"] == "author" and book_info["author"] == "":
+            book_info["author"] = person_info["full_name"]
+
+        if person_info["role"] == "reader" and book_info["reader"] == "":
+            book_info["reader"] = person_info["full_name"]
+
+    for series_info in json_data["series"]:
+        book_info["series"] = series_info["name"]
+        book_info["series_count"] = series_info["arts_count"]
+        book_info["series_num"] = series_info["art_order"]
+        break
+
+    return book_info
+
+
+def get_book_folder(output, book_info):
+    book_folder = Path(output)
+    if book_info["author"] != "":
+        book_folder = Path(book_folder) / \
+            sanitize_filename(book_info["author"])
+
+    if book_info["series"] != "":
+        book_folder = Path(book_folder) / \
+            sanitize_filename(book_info["series"])
+
+    if book_info["series_num"] > 0:
+        book_folder = Path(
+            book_folder) / sanitize_filename(f'{book_info["series_num"]:02d} {book_info["title"]}')
+    else:
+        book_folder = Path(book_folder) / sanitize_filename(book_info["title"])
+    Path(book_folder).mkdir(exist_ok=True, parents=True)
+    return book_folder
+
+
 def download_book(url, output, browser):
     headers = get_headers(browser)
     cookies = get_cookies(browser)
@@ -75,12 +117,11 @@ def download_book(url, output, browser):
             f"Ошибка запроса GET: {url_string}. Статус: {res.status_code}")
         exit(1)
 
-    book_info = res.json()["payload"]["data"]
+    book_info = get_book_info(res.json()["payload"]["data"])
     logger.debug(f"Получена информация о книге: {book_info['title']}")
-    book_folder = Path(output) / sanitize_filename(book_info["title"])
-    Path(book_folder).mkdir(exist_ok=True, parents=True)
+    book_folder = get_book_folder(output, book_info)
     print(f"Загрузка файлов в каталог: {book_folder}")
-    
+
     # Список файлов для загрузки
     url_string = url_string + "/files/grouped"
     res = requests.get(url_string, cookies=cookies, headers=headers)
