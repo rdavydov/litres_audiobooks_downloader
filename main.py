@@ -1,5 +1,4 @@
 import requests
-import shutil
 import browsercookie
 from pathvalidate import sanitize_filename
 import argparse
@@ -73,6 +72,10 @@ def get_book_info(json_data):
     for person_info in json_data["persons"]:
         if person_info["role"] == "author" and book_info["author"] == "":
             book_info["author"] = person_info["full_name"]
+            author_split = book_info["author"].split()
+            # Переворачиваем фамилию имя
+            if len(author_split) == 2:
+                book_info["author"] = f'{author_split[1]} {author_split[0]}'
 
         if person_info["role"] == "reader" and book_info["reader"] == "":
             book_info["reader"] = person_info["full_name"]
