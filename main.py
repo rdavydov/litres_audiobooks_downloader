@@ -135,7 +135,7 @@ def download_book(url, output, browser):
 
     groups_info = res.json()["payload"]["data"]
     for group_info in groups_info:
-        if group_info["file_type"] == "standard_quality_mp3":
+        if "standard_quality_mp3" in group_info["file_type"]:
             files_info = group_info["files"]
             for file_info in files_info:
                 file_id = file_info["id"]
