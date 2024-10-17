@@ -81,9 +81,12 @@ def get_book_info(json_data):
             book_info["reader"] = person_info["full_name"]
 
     for series_info in json_data["series"]:
-        book_info["series"] = series_info["name"]
-        book_info["series_count"] = series_info["arts_count"]
-        book_info["series_num"] = series_info["art_order"]
+        if "name" in series_info and series_info["name"] != None:
+            book_info["series"] = series_info["name"]
+        if "arts_count" in series_info and series_info["arts_count"] != None:
+            book_info["series_count"] = series_info["arts_count"]
+        if "art_order" in series_info and series_info["art_order"] != None:
+            book_info["series_num"] = series_info["art_order"]
         break
 
     return book_info
