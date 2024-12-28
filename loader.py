@@ -170,7 +170,7 @@ def cookies_is_valid(cookies):
 if __name__ == "__main__":
     logging.basicConfig(
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        level=logging.WARNING,
+        level=logging.INFO,
     )
     parser = argparse.ArgumentParser(
         description=f"Загрузчик аудиокниг с сайта {LITRES_DOMAIN_NAME} ДОСТУПНЫХ ПОЛЬЗОВАТЕЛЮ ПО ПОДПИСКЕ ")
@@ -188,7 +188,7 @@ if __name__ == "__main__":
                         При создании cookies по пользователю-паролю данные сохранятся в этот файл", default="")
     parser.add_argument(
         "-o", "--output", help="Путь к папке загрузки", default=".")
-    parser.add_argument("url", help="Адрес (url) страницы с книгой")
+    parser.add_argument("--url", help="Адрес (url) страницы с книгой",default="")
 
     args = parser.parse_args()
     logger.info(args)
@@ -253,6 +253,7 @@ if __name__ == "__main__":
     # Записываем куки в файл, если задан путь
     if len(args.cookies_file) > 0:
         Path(args.cookies_file).write_text(
-            dict_from_cookiejar(json.dumps(cookies)))
+            json.dumps(dict_from_cookiejar(cookies)))
 
-    download_book(args.url, args.output, args.browser, cookies=cookies)
+    if len(args.url) > 0:
+        download_book(args.url, args.output, args.browser, cookies=cookies)
