@@ -1,17 +1,18 @@
 import argparse
 import logging
-from main import download_book
+from loader import download_book, get_cookies
 
 logger = logging.getLogger(__name__)
 
 
 def download_books(input, output, browser):
+    cookies = get_cookies(args.browser)
     with open(input, 'r') as f:
         for url in f:
-          url_trim = url.strip()
-          if "litres.ru" in url_trim:
-            print(f"Адрес к загрузке: {url_trim}")
-            download_book(url_trim, output, browser)
+            url_trim = url.strip()
+            if "litres.ru" in url_trim:
+                print(f"Адрес к загрузке: {url_trim}")
+                download_book(url_trim, output, browser, cookies)
 
 
 if __name__ == "__main__":

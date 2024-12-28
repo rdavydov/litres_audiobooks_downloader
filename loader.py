@@ -6,9 +6,11 @@ import logging
 from pathlib import Path
 from fake_useragent import UserAgent
 from tqdm import tqdm
+import litres_auth
 
 logger = logging.getLogger(__name__)
-api_url = "https://api.litres.ru/foundation/api/arts/"
+LITRES_DOMAIN_NAME = 'litres.ru'
+api_url = f'https://api.{LITRES_DOMAIN_NAME}/foundation/api/arts/'
 
 
 def get_headers(browser):
@@ -111,9 +113,8 @@ def get_book_folder(output, book_info):
     return book_folder
 
 
-def download_book(url, output, browser):
+def download_book(url, output, browser, cookies):
     headers = get_headers(browser)
-    cookies = get_cookies(browser)
     book_id = url.split("-")[-1].split("/")[0]
 
     url_string = api_url+book_id
@@ -143,26 +144,76 @@ def download_book(url, output, browser):
             for file_info in files_info:
                 file_id = file_info["id"]
                 filename = file_info["filename"]
-                file_url = f"https://www.litres.ru/download_book_subscr/{book_id}/{file_id}/{filename}"
+                file_url = f"https://www.{LITRES_DOMAIN_NAME}/download_book_subscr/{book_id}/{file_id}/{filename}"
                 download_mp3(file_url, book_folder,
                              filename, cookies, headers)
             break
 
 
+def cookies_is_valid(cookies):
+    result = False
+    res = requests.get(f"https://{LITRES_DOMAIN_NAME}", cookies=cookies)
+    if res.ok:
+        content_list = res.text.split('/me/profile/')
+        if len(content_list) > 1:
+            result = True
+
+    return result
+
+
 if __name__ == "__main__":
     logging.basicConfig(
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        level=logging.ERROR,
+        level=logging.WARNING,
     )
     parser = argparse.ArgumentParser(
-        description="Загрузчик аудиокниг доступных по подписке с сайта litres.ru. \n Прежде чем использовать скрипт, небходимо в браузере залогиниться на сайте. \n Загрузчик использует cookies из браузера.")
+        description=f"Загрузчик аудиокниг доступных по подписке с сайта {LITRES_DOMAIN_NAME}. \n Прежде чем использовать скрипт, небходимо в браузере залогиниться на сайте. \n Загрузчик использует cookies из браузера.")
     parser.add_argument(
-        "-b", "--browser", help="Браузер в котором вы авторизованы на сайте litres.ru. Будут использоваться cookies из этого браузера. По умолчанию: chrome", default="chrome",
+        "-b", "--browser", help=f"Браузер в котором вы авторизованы на сайте {LITRES_DOMAIN_NAME}. Будут использоваться cookies из этого браузера. По умолчанию: chrome", default="chrome",
         choices=["chrome", "chromium", "vivaldi", "edge", "firefox", "safari"])
+    parser.add_argument("-u", "--user", help="Имя пользователя", default="")
+    parser.add_argument("-p", "--password", help="Пароль", default="")
+    parser.add_argument(
+        "--create-cookies", help="Создавать cookies используя полученные имя пользователя и пароль",
+        choices=["allways", "never", "invalid"], default="invalid")
     parser.add_argument(
         "-o", "--output", help="Путь к папке загрузки", default=".")
     parser.add_argument("url", help="Адрес (url) страницы с книгой")
 
     args = parser.parse_args()
     logger.info(args)
-    download_book(args.url, args.output, args.browser)
+
+    # Получаем куки
+    if 'allways' in args.create_cookies:
+        if len(args.user) > 0 and len(args.password) > 0:
+            logger.info('Try to create cookies by user/password')
+            cookies = litres_auth.create_cookies(
+                args.user, args.password, args.browser)
+            if not cookies_is_valid(cookies):
+                logger.error('Created cookies is invalid')
+                exit(0)
+        else:
+            logger.error('user/password is not set')
+            exit(0)
+    else:  # never or invalid
+        logger.info(f'Try to get {args.browser} cookies')
+        cookies = get_cookies(args.browser)
+        if not cookies_is_valid(cookies):
+            if 'never' in args.create_cookies:
+                logger.error(f'The {args.browser} browser cookies is invalid')
+                exit(0)
+            else:  # create if invalid
+                logger.warning(
+                    f'The {args.browser} browser cookies is invalid')
+                if len(args.user) > 0 and len(args.password) > 0:
+                    logger.warning('Try to create cookies by user/password')
+                    cookies = litres_auth.create_cookies(
+                        args.user, args.password, args.browser)
+                    if not cookies_is_valid(cookies):
+                        logger.error('Created cookies is invalid')
+                        exit(0)
+                else:
+                    logger.error('user/password is not set')
+                    exit(0)
+
+    download_book(args.url, args.output, args.browser, cookies=cookies)
