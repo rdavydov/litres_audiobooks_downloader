@@ -7,6 +7,12 @@ from pathlib import Path
 from fake_useragent import UserAgent
 from tqdm import tqdm
 import litres_auth
+try:
+    import cookielib
+except ImportError:
+    import http.cookiejar as cookielib
+import json
+from requests.utils import dict_from_cookiejar, cookiejar_from_dict
 
 logger = logging.getLogger(__name__)
 LITRES_DOMAIN_NAME = 'litres.ru'
@@ -167,15 +173,19 @@ if __name__ == "__main__":
         level=logging.WARNING,
     )
     parser = argparse.ArgumentParser(
-        description=f"Загрузчик аудиокниг доступных по подписке с сайта {LITRES_DOMAIN_NAME}. \n Прежде чем использовать скрипт, небходимо в браузере залогиниться на сайте. \n Загрузчик использует cookies из браузера.")
+        description=f"Загрузчик аудиокниг с сайта {LITRES_DOMAIN_NAME} ДОСТУПНЫХ ПОЛЬЗОВАТЕЛЮ ПО ПОДПИСКЕ ")
     parser.add_argument(
-        "-b", "--browser", help=f"Браузер в котором вы авторизованы на сайте {LITRES_DOMAIN_NAME}. Будут использоваться cookies из этого браузера. По умолчанию: chrome", default="chrome",
-        choices=["chrome", "chromium", "vivaldi", "edge", "firefox", "safari"])
+        "-b", "--browser", help=f"Браузер в котором вы авторизованы на сайте {LITRES_DOMAIN_NAME}. \
+            Будут использоваться cookies из этого браузера. Также при загрузке книг будет эмулироваться\
+            User agent этого браузера. По умолчанию: chrome", default="chrome",
+        choices=["chrome", "edge", "firefox", "safari"])
     parser.add_argument("-u", "--user", help="Имя пользователя", default="")
     parser.add_argument("-p", "--password", help="Пароль", default="")
     parser.add_argument(
         "--create-cookies", help="Создавать cookies используя полученные имя пользователя и пароль",
         choices=["allways", "never", "invalid"], default="invalid")
+    parser.add_argument("--cookies-file", help="Если параметр задан, то cookies будут загружаться из него.\
+                        При создании cookies по пользователю-паролю данные сохранятся в этот файл", default="")
     parser.add_argument(
         "-o", "--output", help="Путь к папке загрузки", default=".")
     parser.add_argument("url", help="Адрес (url) страницы с книгой")
@@ -183,8 +193,11 @@ if __name__ == "__main__":
     args = parser.parse_args()
     logger.info(args)
 
+    cookies = None
+
     # Получаем куки
     if 'allways' in args.create_cookies:
+        # Безусловно создаем куки по имени пользователя и паролю
         if len(args.user) > 0 and len(args.password) > 0:
             logger.info('Try to create cookies by user/password')
             cookies = litres_auth.create_cookies(
@@ -196,8 +209,29 @@ if __name__ == "__main__":
             logger.error('user/password is not set')
             exit(0)
     else:  # never or invalid
-        logger.info(f'Try to get {args.browser} cookies')
-        cookies = get_cookies(args.browser)
+
+        # Если задано имя файла, пытаемся получить куки из него
+        if len(args.cookies_file) > 0:
+            if Path(args.cookies_file).is_file():
+                logger.info(
+                    f'Try to get cookies from file {args.cookies_file}')
+                # cookies = cookielib.FileCookieJar().load(args.cookies_file)
+                cookies_dict = json.loads(Path(args.cookies_file).read_text())
+                cookies = cookiejar_from_dict(cookies_dict)
+
+                # Проверим, что куки из файла валидные, иначе сбросим их
+                if not cookies_is_valid(cookies):
+                    logger.warning(
+                        f'The cookies in the file {args.cookies_file} is invalid')
+                    cookies = None
+            else:
+                logger.warning(f'The file  {args.cookies_file} is not exist')
+
+        if cookies == None:
+            # Пытаемся получить куки браузера
+            logger.info(f'Try to get {args.browser} cookies')
+            cookies = get_cookies(args.browser)
+
         if not cookies_is_valid(cookies):
             if 'never' in args.create_cookies:
                 logger.error(f'The {args.browser} browser cookies is invalid')
@@ -215,5 +249,10 @@ if __name__ == "__main__":
                 else:
                     logger.error('user/password is not set')
                     exit(0)
+
+    # Записываем куки в файл, если задан путь
+    if len(args.cookies_file) > 0:
+        Path(args.cookies_file).write_text(
+            dict_from_cookiejar(json.dumps(cookies)))
 
     download_book(args.url, args.output, args.browser, cookies=cookies)
