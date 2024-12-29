@@ -85,16 +85,12 @@ python main.py -b chrome -o D:\audiobooks -a links.txt
 
 Использование cookies, экспортированных из браузерного расширения EditThisCookie:
 
-**Linux:**
+> **_ВНИМАНИЕ:_**  Запускать с аргументом `--import-from-etc` нужно *всего один раз*. После этого файл с cookies будет автоматически сконвертирован.
+
+**Linux & Windows:**
 
 ```bash
-python loader.py -o /путь/к/папке --cookies-file cookies.json --import-from-etc --url URL_КНИГИ
-```
-
-**Windows:**
-
-```cmd
-python loader.py -o D:\путь\к\папке --cookies-file cookies.json --import-from-etc --url URL_КНИГИ
+python loader.py --cookies-file cookies.json --import-from-etc
 ```
 
 4. Краткая справка по программе:

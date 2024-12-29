@@ -252,7 +252,7 @@ if __name__ == "__main__":
         "-o", "--output", help="Путь к папке загрузки", default=".")
     parser.add_argument("--url", help="Адрес (url) страницы с книгой", default="")
     # Новые аргументы
-    parser.add_argument("--import-from-etc", help="Импортировать cookies из формата EditThisCookie", 
+    parser.add_argument("--import-from-etc", help="Импортировать cookies из формата EditThisCookie и сконвертировать их", 
                        action="store_true")
     parser.add_argument("-a", help="Файл со списком URL книг для загрузки (по одной ссылке на строку)",
                        metavar="LIST", default="")
