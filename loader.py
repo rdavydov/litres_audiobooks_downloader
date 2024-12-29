@@ -176,22 +176,26 @@ def convert_editthiscookie_to_requests(cookie_list):
     return cookies_dict
 
 
+def is_etc_format(cookie_data):
+    """Проверяет, соответствует ли формат данных формату EditThisCookie"""
+    return isinstance(cookie_data, list) and all(isinstance(c, dict) and 'name' in c and 'value' in c for c in cookie_data)
+
+
 def load_cookies_from_file(cookies_file, import_from_etc=False):
     """Загружает и конвертирует cookies из JSON файла"""
     try:
         with open(cookies_file, 'r') as f:
             cookie_data = json.loads(f.read())
             
-        if import_from_etc:
-            if isinstance(cookie_data, list) and all(isinstance(c, dict) and 'name' in c and 'value' in c for c in cookie_data):
-                return convert_editthiscookie_to_requests(cookie_data)
-            else:
-                raise ValueError("Неверный формат EditThisCookie")
+        # Если указан флаг import_from_etc, проверяем формат
+        if import_from_etc and is_etc_format(cookie_data):
+            # Конвертируем только если данные действительно в формате EditThisCookie
+            return convert_editthiscookie_to_requests(cookie_data)
+        elif isinstance(cookie_data, dict):
+            # Если данные уже в формате requests, используем как есть
+            return cookie_data
         else:
-            if isinstance(cookie_data, dict):
-                return cookie_data
-            else:
-                raise ValueError("Неверный формат словаря cookies")
+            raise ValueError("Неверный формат cookies")
             
     except Exception as e:
         logger.error(f"Ошибка загрузки cookies из {cookies_file}: {str(e)}")
@@ -222,7 +226,8 @@ def process_url_list(url_list_file, output, browser, cookies):
         logger.info(f"\nИтоги загрузки:")
         logger.info(f"Всего обработано URL: {total}")
         logger.info(f"Успешно загружено: {successful}")
-        logger.info(f"Не удалось загрузить: {failed}")
+        if failed > 0:
+            logger.info(f"Не удалось загрузить: {failed}")
         
     except Exception as e:
         logger.error(f"Ошибка обработки файла со списком URL: {str(e)}")
