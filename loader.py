@@ -167,6 +167,34 @@ def cookies_is_valid(cookies):
     return result
 
 
+def convert_editthiscookie_to_requests(cookie_list):
+    """Convert EditThisCookie format to requests-compatible dictionary format"""
+    cookies_dict = {}
+    for cookie in cookie_list:
+        # Only include essential fields that requests needs
+        cookies_dict[cookie['name']] = cookie['value']
+    return cookies_dict
+
+def load_cookies_from_file(cookies_file):
+    """Load and convert cookies from a JSON file"""
+    try:
+        with open(cookies_file, 'r') as f:
+            cookie_list = json.loads(f.read())
+            
+        # Check if it's EditThisCookie format (list of dicts with specific fields)
+        if isinstance(cookie_list, list) and all(isinstance(c, dict) and 'name' in c and 'value' in c for c in cookie_list):
+            return convert_editthiscookie_to_requests(cookie_list)
+        # If it's already in requests format (direct dict)
+        elif isinstance(cookie_list, dict):
+            return cookie_list
+        else:
+            raise ValueError("Unrecognized cookie format")
+            
+    except Exception as e:
+        logger.error(f"Error loading cookies from {cookies_file}: {str(e)}")
+        return None
+
+
 if __name__ == "__main__":
     logging.basicConfig(
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -211,21 +239,38 @@ if __name__ == "__main__":
     else:  # never or invalid
 
         # Если задано имя файла, пытаемся получить куки из него
+        # if len(args.cookies_file) > 0:
+        #     if Path(args.cookies_file).is_file():
+        #         logger.info(
+        #             f'Try to get cookies from file {args.cookies_file}')
+        #         # cookies = cookielib.FileCookieJar().load(args.cookies_file)
+        #         cookies_dict = json.loads(Path(args.cookies_file).read_text())
+        #         cookies = cookiejar_from_dict(cookies_dict)
+
+        #         # Проверим, что куки из файла валидные, иначе сбросим их
+        #         if not cookies_is_valid(cookies):
+        #             logger.warning(
+        #                 f'The cookies in the file {args.cookies_file} is invalid')
+        #             cookies = None
+        #     else:
+        #         logger.warning(f'The file  {args.cookies_file} is not exist')
+
+        # If cookies_file is specified
         if len(args.cookies_file) > 0:
             if Path(args.cookies_file).is_file():
-                logger.info(
-                    f'Try to get cookies from file {args.cookies_file}')
-                # cookies = cookielib.FileCookieJar().load(args.cookies_file)
-                cookies_dict = json.loads(Path(args.cookies_file).read_text())
-                cookies = cookiejar_from_dict(cookies_dict)
-
-                # Проверим, что куки из файла валидные, иначе сбросим их
-                if not cookies_is_valid(cookies):
-                    logger.warning(
-                        f'The cookies in the file {args.cookies_file} is invalid')
-                    cookies = None
+                logger.info(f'Try to get cookies from file {args.cookies_file}')
+                cookies_dict = load_cookies_from_file(args.cookies_file)
+                if cookies_dict:
+                    cookies = cookiejar_from_dict(cookies_dict)
+                    
+                    # Verify the cookies are valid
+                    if not cookies_is_valid(cookies):
+                        logger.warning(f'The cookies in the file {args.cookies_file} is invalid')
+                        cookies = None
+                else:
+                    logger.warning(f'Could not load cookies from {args.cookies_file}')
             else:
-                logger.warning(f'The file  {args.cookies_file} is not exist')
+                logger.warning(f'The file {args.cookies_file} does not exist')
 
         if cookies == None:
             # Пытаемся получить куки браузера
