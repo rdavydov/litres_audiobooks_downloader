@@ -245,7 +245,7 @@ if __name__ == "__main__":
     parser.add_argument("-p", "--password", help="Пароль", default="")
     parser.add_argument(
         "--create-cookies", help="Создавать cookies используя полученные имя пользователя и пароль",
-        choices=["allways", "never", "invalid"], default="invalid")
+        choices=["always", "never", "invalid"], default="invalid")
     parser.add_argument("--cookies-file", help="Если параметр задан, то cookies будут загружаться из него.\
                         При создании cookies по пользователю-паролю данные сохранятся в этот файл", default="")
     parser.add_argument(
@@ -263,7 +263,7 @@ if __name__ == "__main__":
     cookies = None
 
     # Получение cookies
-    if 'allways' in args.create_cookies:
+    if 'always' in args.create_cookies:
         if len(args.user) > 0 and len(args.password) > 0:
             logger.info('Попытка создания cookies по логину/паролю')
             cookies = litres_auth.create_cookies(
