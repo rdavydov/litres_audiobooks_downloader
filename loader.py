@@ -167,7 +167,7 @@ def cookies_is_valid(cookies):
     return result
 
 
-def convert_editthiscookie_to_requests(cookie_list):
+def convert_etc_to_requests(cookie_list):
     """Конвертирует формат EditThisCookie в формат, совместимый с requests"""
     cookies_dict = {}
     for cookie in cookie_list:
@@ -190,7 +190,7 @@ def load_cookies_from_file(cookies_file, import_from_etc=False):
         # Если указан флаг import_from_etc, проверяем формат
         if import_from_etc and is_etc_format(cookie_data):
             # Конвертируем только если данные действительно в формате EditThisCookie
-            return convert_editthiscookie_to_requests(cookie_data)
+            return convert_etc_to_requests(cookie_data)
         elif isinstance(cookie_data, dict):
             # Если данные уже в формате requests, используем как есть
             return cookie_data
