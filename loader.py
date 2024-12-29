@@ -175,24 +175,60 @@ def convert_editthiscookie_to_requests(cookie_list):
         cookies_dict[cookie['name']] = cookie['value']
     return cookies_dict
 
-def load_cookies_from_file(cookies_file):
+
+def load_cookies_from_file(cookies_file, import_from_etc=False):
     """Load and convert cookies from a JSON file"""
     try:
         with open(cookies_file, 'r') as f:
-            cookie_list = json.loads(f.read())
+            cookie_data = json.loads(f.read())
             
-        # Check if it's EditThisCookie format (list of dicts with specific fields)
-        if isinstance(cookie_list, list) and all(isinstance(c, dict) and 'name' in c and 'value' in c for c in cookie_list):
-            return convert_editthiscookie_to_requests(cookie_list)
-        # If it's already in requests format (direct dict)
-        elif isinstance(cookie_list, dict):
-            return cookie_list
+        if import_from_etc:
+            if isinstance(cookie_data, list) and all(isinstance(c, dict) and 'name' in c and 'value' in c for c in cookie_data):
+                return convert_editthiscookie_to_requests(cookie_data)
+            else:
+                raise ValueError("Not a valid EditThisCookie format")
         else:
-            raise ValueError("Unrecognized cookie format")
+            if isinstance(cookie_data, dict):
+                return cookie_data
+            else:
+                raise ValueError("Not a valid cookie dictionary format")
             
     except Exception as e:
         logger.error(f"Error loading cookies from {cookies_file}: {str(e)}")
         return None
+
+
+def process_url_list(url_list_file, output, browser, cookies):
+    """Process multiple URLs from a file"""
+    successful = 0
+    failed = 0
+    
+    try:
+        with open(url_list_file, 'r') as f:
+            urls = [line.strip() for line in f if line.strip()]
+        
+        total = len(urls)
+        logger.info(f"Found {total} URLs to process")
+        
+        for i, url in enumerate(urls, 1):
+            logger.info(f"Processing URL {i}/{total}: {url}")
+            try:
+                download_book(url, output, browser, cookies)
+                successful += 1
+            except Exception as e:
+                logger.error(f"Failed to download book from {url}: {str(e)}")
+                failed += 1
+                
+        logger.info(f"\nDownload summary:")
+        logger.info(f"Total URLs processed: {total}")
+        logger.info(f"Successfully downloaded: {successful}")
+        logger.info(f"Failed to download: {failed}")
+        
+    except Exception as e:
+        logger.error(f"Error processing URL list file: {str(e)}")
+        return 0, 0
+        
+    return successful, failed
 
 
 if __name__ == "__main__":
@@ -216,16 +252,20 @@ if __name__ == "__main__":
                         При создании cookies по пользователю-паролю данные сохранятся в этот файл", default="")
     parser.add_argument(
         "-o", "--output", help="Путь к папке загрузки", default=".")
-    parser.add_argument("--url", help="Адрес (url) страницы с книгой",default="")
+    parser.add_argument("--url", help="Адрес (url) страницы с книгой", default="")
+    # New arguments
+    parser.add_argument("--import-from-etc", help="Импортировать cookies из формата EditThisCookie", 
+                       action="store_true")
+    parser.add_argument("-a", help="Файл со списком URL книг для загрузки (по одной ссылке на строку)",
+                       metavar="LIST", default="")
 
     args = parser.parse_args()
     logger.info(args)
 
     cookies = None
 
-    # Получаем куки
+    # Get cookies
     if 'allways' in args.create_cookies:
-        # Безусловно создаем куки по имени пользователя и паролю
         if len(args.user) > 0 and len(args.password) > 0:
             logger.info('Try to create cookies by user/password')
             cookies = litres_auth.create_cookies(
@@ -237,43 +277,27 @@ if __name__ == "__main__":
             logger.error('user/password is not set')
             exit(0)
     else:  # never or invalid
-
-        # Если задано имя файла, пытаемся получить куки из него
-        # if len(args.cookies_file) > 0:
-        #     if Path(args.cookies_file).is_file():
-        #         logger.info(
-        #             f'Try to get cookies from file {args.cookies_file}')
-        #         # cookies = cookielib.FileCookieJar().load(args.cookies_file)
-        #         cookies_dict = json.loads(Path(args.cookies_file).read_text())
-        #         cookies = cookiejar_from_dict(cookies_dict)
-
-        #         # Проверим, что куки из файла валидные, иначе сбросим их
-        #         if not cookies_is_valid(cookies):
-        #             logger.warning(
-        #                 f'The cookies in the file {args.cookies_file} is invalid')
-        #             cookies = None
-        #     else:
-        #         logger.warning(f'The file  {args.cookies_file} is not exist')
-
-        # If cookies_file is specified
         if len(args.cookies_file) > 0:
             if Path(args.cookies_file).is_file():
                 logger.info(f'Try to get cookies from file {args.cookies_file}')
-                cookies_dict = load_cookies_from_file(args.cookies_file)
-                if cookies_dict:
-                    cookies = cookiejar_from_dict(cookies_dict)
-                    
-                    # Verify the cookies are valid
-                    if not cookies_is_valid(cookies):
-                        logger.warning(f'The cookies in the file {args.cookies_file} is invalid')
-                        cookies = None
+                
+                if args.import_from_etc:
+                    # Use EditThisCookie format import
+                    cookies_dict = load_cookies_from_file(args.cookies_file, import_from_etc=True)
+                    if cookies_dict:
+                        cookies = cookiejar_from_dict(cookies_dict)
                 else:
-                    logger.warning(f'Could not load cookies from {args.cookies_file}')
+                    # Use original format
+                    cookies_dict = json.loads(Path(args.cookies_file).read_text())
+                    cookies = cookiejar_from_dict(cookies_dict)
+
+                if not cookies_is_valid(cookies):
+                    logger.warning(f'The cookies in the file {args.cookies_file} is invalid')
+                    cookies = None
             else:
-                logger.warning(f'The file {args.cookies_file} does not exist')
+                logger.warning(f'The file {args.cookies_file} is not exist')
 
         if cookies == None:
-            # Пытаемся получить куки браузера
             logger.info(f'Try to get {args.browser} cookies')
             cookies = get_cookies(args.browser)
 
@@ -282,8 +306,7 @@ if __name__ == "__main__":
                 logger.error(f'The {args.browser} browser cookies is invalid')
                 exit(0)
             else:  # create if invalid
-                logger.warning(
-                    f'The {args.browser} browser cookies is invalid')
+                logger.warning(f'The {args.browser} browser cookies is invalid')
                 if len(args.user) > 0 and len(args.password) > 0:
                     logger.warning('Try to create cookies by user/password')
                     cookies = litres_auth.create_cookies(
@@ -295,10 +318,21 @@ if __name__ == "__main__":
                     logger.error('user/password is not set')
                     exit(0)
 
-    # Записываем куки в файл, если задан путь
+    # Save cookies if file specified
     if len(args.cookies_file) > 0:
         Path(args.cookies_file).write_text(
             json.dumps(dict_from_cookiejar(cookies)))
 
-    if len(args.url) > 0:
+    # Process downloads
+    if len(args.a) > 0 and Path(args.a).is_file():
+        # Process URL list
+        successful, failed = process_url_list(args.a, args.output, args.browser, cookies)
+        logger.info(f"\nВсе загрузки завершены!")
+        logger.info(f"Успешно загружено книг: {successful}")
+        logger.info(f"Не удалось загрузить книг: {failed}")
+    elif len(args.url) > 0:
+        # Process single URL
         download_book(args.url, args.output, args.browser, cookies=cookies)
+    else:
+        logger.error("No URL or URL list file specified")
+        exit(1)
