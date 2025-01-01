@@ -15,7 +15,7 @@
 Скачиваем любым способом исходный код. Например:
 
 ```bash
-git clone https://github.com/fabrikant/litres_audiobooks_downloader.git
+git clone https://github.com/rdavydov/litres_audiobooks_downloader.git
 ```
 
 Переходим в каталог с исходным кодом и выполняем команды:
